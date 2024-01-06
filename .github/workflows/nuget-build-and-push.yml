@@ -18,13 +18,13 @@ jobs:
         dotnet-version: '8.0'
 
     - name: Restore dependencies
-      run: dotnet restore ObseumEU.Mluvii.Client/ObseumEU.Mluvii.Client/ObseumEU.Mluvii.Client.csproj
+      run: dotnet restore src/ObseumEU.Mluvii.Client/ObseumEU.Mluvii.Client.csproj
 
     - name: Build
-      run: dotnet build ObseumEU.Mluvii.Client/ObseumEU.Mluvii.Client/ObseumEU.Mluvii.Client.csproj --configuration Release --no-restore
+      run: dotnet build src/ObseumEU.Mluvii.Client/ObseumEU.Mluvii.Client.csproj --configuration Release --no-restore
 
     - name: Pack
-      run: dotnet pack ObseumEU.Mluvii.Client/ObseumEU.Mluvii.Client/ObseumEU.Mluvii.Client.csproj --no-build --configuration Release /p:PackageVersion=1.${{ github.run_number }} -o nupkg
+      run: dotnet pack src/ObseumEU.Mluvii.Client/ObseumEU.Mluvii.Client.csproj --no-build --configuration Release /p:PackageVersion=1.${{ github.run_number }} -o nupkg
 
     # List files in the package directory
     - name: List files in the nupkg directory
