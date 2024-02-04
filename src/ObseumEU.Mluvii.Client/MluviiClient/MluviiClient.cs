@@ -83,6 +83,10 @@ namespace ObseumEU.Mluvii.Client
             int delayMiliseconds = 200);
         Task GetCampaignIndetitiesPaged(Func<(List<CampaignIdentity> value, IRestResponse response), Task<bool>> pageAction, long campaignId, int delayMiliseconds = 200, long limit = 1000);
         Task<(User value, IRestResponse response)> GetUser(long id);
+        Task<IRestResponse> AddCustomChannelWebhook(string callBackUrl);
+        Task<IRestResponse> DeleteCustomChannelWebhook(string callBackUrl);
+        Task<IRestResponse> UpdateCustomChannelWebhook(string callBackUrl);
+
     }
 
     public class MluviiClient : BaseClient, IMluviiUserClient, IMluviiClient
@@ -443,6 +447,21 @@ namespace ObseumEU.Mluvii.Client
                 callbackUrl = callBackUrl
             });
             return (await ExecuteAsync<object>(request, true)).Response;
+        }
+
+        public async Task<IRestResponse> AddCustomChannelWebhook(string callBackUrl)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<IRestResponse> DeleteCustomChannelWebhook(string callBackUrl)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<IRestResponse> UpdateCustomChannelWebhook(string callBackUrl)
+        {
+            throw new NotImplementedException();
         }
 
         public async Task<IRestResponse> AnonymizeSession(long sessionId, bool verbose = false)
