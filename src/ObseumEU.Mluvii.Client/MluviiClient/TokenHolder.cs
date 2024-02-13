@@ -2,25 +2,25 @@
 {
     public class TokenHolder
     {
-        private readonly Func<Task<Token>> obtainToken;
-        private string token;
-        private DateTime? tokenNextRefresh;
+        private readonly Func<Task<string>> _obtainToken;
+        private string _token;
+        private DateTime _tokenNextRefresh;
 
-        public TokenHolder(Func<Task<Token>> obtainToken)
+        public TokenHolder(Func<Task<string>> obtainToken)
         {
-            this.obtainToken = obtainToken;
+            _obtainToken = obtainToken;
         }
 
         public async Task<string> GetToken()
         {
-            if (token != null && tokenNextRefresh.HasValue && tokenNextRefresh.Value > DateTime.Now) return token;
+            if (!string.IsNullOrEmpty(_token) && DateTime.UtcNow < _tokenNextRefresh)
+            {
+                return _token;
+            }
 
-            var tokenResponse = await obtainToken();
-            tokenNextRefresh = DateTime.Now + TimeSpan.FromSeconds(tokenResponse.ExpiresIn) -
-                               TimeSpan.FromMinutes(5);
-            token = tokenResponse.AccessToken;
-
-            return token;
+            _token = await _obtainToken();
+            _tokenNextRefresh = DateTime.UtcNow.AddMinutes(5);
+            return _token;
         }
     }
 }

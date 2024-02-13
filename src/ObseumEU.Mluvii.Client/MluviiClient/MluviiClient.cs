@@ -86,7 +86,6 @@ namespace ObseumEU.Mluvii.Client
         Task<IRestResponse> AddCustomChannelWebhook(string callBackUrl);
         Task<IRestResponse> DeleteCustomChannelWebhook(string callBackUrl);
         Task<IRestResponse> UpdateCustomChannelWebhook(string callBackUrl);
-        Task<IRestResponse> SendCustomChannelActivity(object activity);
 
     }
 
@@ -461,11 +460,6 @@ namespace ObseumEU.Mluvii.Client
         }
 
         public async Task<IRestResponse> UpdateCustomChannelWebhook(string callBackUrl)
-        {
-            throw new NotImplementedException();
-        }
-
-        public async Task<IRestResponse> SendCustomChannelActivity(object activity)
         {
             throw new NotImplementedException();
         }
