@@ -14,6 +14,7 @@ var host = Host.CreateDefaultBuilder()
     })
     .ConfigureServices((hostContext, services) =>
     {
+        services.AddHttpClient();
         services.Configure<MluviiCredentialOptions>(hostContext.Configuration.GetSection("Mluvii"));
         services.AddSingleton<ICacheService, InMemoryCache>();
         services.AddSingleton<ITokenEndpoint, TokenEndpoint>();

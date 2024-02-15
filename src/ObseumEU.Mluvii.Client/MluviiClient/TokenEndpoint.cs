@@ -1,71 +1,73 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
-using System.Net;
-using System.Net.Security;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ObseumEU.Mluvii.Client
 {
     public interface ITokenEndpoint
     {
-        Task<Token> RequestAccessToken(string requestedScope);
+        Task<Token> RequestAccessToken();
     }
 
-    public class Token
+    public record Token
     {
-        [JsonProperty("access_token")] public string AccessToken { get; set; }
+        [JsonPropertyName("access_token")]
+        public string AccessToken { get; init; }
 
-        [JsonProperty("expires_in")] public long ExpiresIn { get; set; }
+        [JsonPropertyName("expires_in")]
+        public long ExpiresIn { get; init; }
 
-        [JsonProperty("token_type")] public string TokenType { get; set; }
+        [JsonPropertyName("token_type")]
+        public string TokenType { get; init; }
+
+        public DateTime ExpiresAtUtc { get; init; }
     }
 
     public class TokenEndpoint : ITokenEndpoint
     {
-        private static HttpClient httpClient;
-        private readonly MluviiCredentialOptions config;
-        private readonly ILogger<TokenEndpoint> log;
+        private readonly HttpClient _httpClient;
+        private readonly MluviiCredentialOptions _config;
+        private readonly ILogger<TokenEndpoint> _log;
 
-        public TokenEndpoint(IOptions<MluviiCredentialOptions> options, ILogger<TokenEndpoint> log)
+        public TokenEndpoint(IHttpClientFactory httpClientFactory, IOptions<MluviiCredentialOptions> options, ILogger<TokenEndpoint> log)
         {
-            this.log = log;
-            config = options.Value;
-            if (httpClient == null)
-            {
-#if DEBUG
-                var httpClientHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback =
-                        (_, vc, __, ve) => ve == SslPolicyErrors.None || vc.Subject.Contains("CN=localhost")
-                };
-                httpClient = new HttpClient(httpClientHandler, true);
-#else
-            httpClient = new HttpClient();
-#endif
-            }
+            _log = log ?? throw new ArgumentNullException(nameof(log));
+            _config = options?.Value ?? throw new ArgumentNullException(nameof(options));
+            _httpClient = httpClientFactory?.CreateClient() ?? throw new ArgumentNullException(nameof(httpClientFactory));
         }
 
-        public async Task<Token> RequestAccessToken(string requestedScope)
+        public async Task<Token> RequestAccessToken()
         {
-            //TODO refactor to restsharp too
-            var httpClient = new HttpClient();
             var values = new Dictionary<string, string>
             {
-                {"client_id", config.Name},
-                {"client_secret", config.Secret},
-                {"grant_type", "client_credentials"}
+                {"client_id", _config.Name},
+                {"client_secret", _config.Secret},
+                {"grant_type", "client_credentials"},
+                {"scope", "mluviiPublicApi"} // Only include if the API requires it
             };
 
             var content = new FormUrlEncodedContent(values);
+            var response = await _httpClient.PostAsync(_config.TokenEndpoint, content);
 
-            var response = await httpClient.PostAsync(config.TokenEndpoint, content);
+            if (!response.IsSuccessStatusCode)
+            {
+                _log.LogError($"Token was not received. Status Code: {response.StatusCode}. Content: {await response.Content.ReadAsStringAsync()}");
+                throw new HttpRequestException($"Token request failed with status code {response.StatusCode}");
+            }
 
-            if (response.StatusCode != HttpStatusCode.OK)
-                throw new Exception("Token was not received, possible error." + response.Content + " Code:" + response.StatusCode);
-
-            var responseString = await response.Content.ReadAsStringAsync();
-            var payload = JsonConvert.DeserializeObject<Token>(responseString);
-            return payload;
+            try
+            {
+                var token = await response.Content.ReadFromJsonAsync<Token>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (token == null) throw new JsonException("Token deserialization returned null.");
+                return token;
+            }
+            catch (JsonException ex)
+            {
+                _log.LogError(ex, "Failed to deserialize the token response.");
+                throw;
+            }
         }
     }
 }

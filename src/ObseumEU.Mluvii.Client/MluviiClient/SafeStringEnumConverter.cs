@@ -1,52 +1,52 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ObseumEU.Mluvii.Client
 {
-    public class SafeStringEnumConverter : StringEnumConverter
+    public class SafeStringEnumConverter : JsonConverterFactory
     {
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, Newtonsoft.Json.JsonSerializer serializer)
+        public override bool CanConvert(Type typeToConvert)
         {
-            if (TryParseStringEnum(reader, objectType, out var result))
-            {
-                return result;
-            }
-
-            return base.ReadJson(reader, objectType, existingValue, serializer);
+            return typeToConvert.IsEnum;
         }
 
-        private bool TryParseStringEnum(JsonReader reader, Type objectType, out object result)
+        public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
         {
-            try
+            var converterType = typeof(SafeEnumConverterInner<>).MakeGenericType(typeToConvert);
+            return (JsonConverter)Activator.CreateInstance(converterType);
+        }
+
+        private class SafeEnumConverterInner<TEnum> : JsonConverter<TEnum> where TEnum : struct, Enum
+        {
+            public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
             {
-                if (reader.TokenType != JsonToken.String)
+                var token = reader.TokenType;
+
+                if (token == JsonTokenType.String)
                 {
-                    result = null;
-                    return false;
+                    var enumString = reader.GetString();
+                    if (string.IsNullOrEmpty(enumString))
+                    {
+                        return default; // Or handle null/empty string differently if needed 
+                    }
+
+                    if (Enum.TryParse(enumString, true, out TEnum parsedEnum))
+                    {
+                        return parsedEnum;
+                    }
+                    else
+                    {
+                        // Handle unknown enum value. Could log this occurrence if necessary. 
+                        return default; // Fallback to default value of the enum 
+                    }
                 }
 
-                var stringValue = reader.Value.ToString();
-                if (string.IsNullOrEmpty(stringValue))
-                {
-                    result = null;
-                    return false;
-                }
-
-                var isNullable = objectType.IsGenericType && objectType.GetGenericTypeDefinition() == typeof(Nullable<>);
-                var enumType = isNullable ? Nullable.GetUnderlyingType(objectType) : objectType;
-                if (enumType == null)
-                {
-                    result = null;
-                    return false;
-                }
-
-                return Enum.TryParse(enumType, stringValue, out result) || Enum.TryParse(enumType, "UNKNOWN", out result);
+                return default; // Fallback for other token types 
             }
-            catch
+
+            public override void Write(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options)
             {
-                // base class will throw correct exception
-                result = null;
-                return false;
+                writer.WriteStringValue(value.ToString());
             }
         }
     }
