@@ -124,5 +124,6 @@ namespace ObseumEU.Mluvii.Client
         public Task<HttpResponseMessage> AddCustomChannelWebhook(string callBackUrl) => throw new NotImplementedException();
         public Task<HttpResponseMessage> DeleteCustomChannelWebhook(string callBackUrl) => throw new NotImplementedException();
         public Task<HttpResponseMessage> UpdateCustomChannelWebhook(string callBackUrl) => throw new NotImplementedException();
+        public Task<HttpResponseMessage> SendCustomChannelActivity(object activity) => throw new NotImplementedException();
     }
 }
