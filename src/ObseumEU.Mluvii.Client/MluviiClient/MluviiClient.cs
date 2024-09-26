@@ -13,10 +13,11 @@ namespace ObseumEU.Mluvii.Client
         private readonly ILogger<MluviiClient> _logger;
         private readonly MluviiCredentialOptions _credentials;
         private readonly TokenHolder _tokenHolder;
+
         private readonly JsonSerializerOptions _jsonSerializerOptions = new()
         {
             PropertyNameCaseInsensitive = true,
-            Converters = { new SafeStringEnumConverter() }
+            Converters = {new SafeStringEnumConverter()}
         };
 
         public MluviiClient(
@@ -27,7 +28,8 @@ namespace ObseumEU.Mluvii.Client
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _credentials = credentials?.Value ?? throw new ArgumentNullException(nameof(credentials));
-            _httpClient = httpClientFactory?.CreateClient() ?? throw new ArgumentNullException(nameof(httpClientFactory));
+            _httpClient = httpClientFactory?.CreateClient() ??
+                          throw new ArgumentNullException(nameof(httpClientFactory));
 
             if (string.IsNullOrWhiteSpace(_credentials.BaseApiEndpoint))
             {
@@ -41,26 +43,32 @@ namespace ObseumEU.Mluvii.Client
         private async Task SetAuthorizationHeaderAsync()
         {
             var token = await _tokenHolder.GetToken();
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
 
         public async Task<HttpResponseMessage> AddContactToCampaign(int campaignId, List<int> contactIds)
         {
             await SetAuthorizationHeaderAsync();
-            var response = await _httpClient.PostAsJsonAsync($"api/{Version}/Campaigns/{campaignId}/identities", new { ids = contactIds }, _jsonSerializerOptions);
+            var response = await _httpClient.PostAsJsonAsync($"api/{Version}/Campaigns/{campaignId}/identities",
+                new {ids = contactIds}, _jsonSerializerOptions);
             return response;
         }
 
-        public async Task GetSessionsPaged(Func<(List<SessionModel> value, HttpResponseMessage response), Task> pageAction,
-            DateTime? startedFrom = null, DateTime? startedTo = null, DateTime? endedFrom = null, DateTime? endedTo = null,
-            string[]? channel = null, string[]? source = null, bool verbose = false, int limit = 200, string[]? status = null,
+        public async Task GetSessionsPaged(
+            Func<(List<SessionModel> value, HttpResponseMessage response), Task> pageAction,
+            DateTime? startedFrom = null, DateTime? startedTo = null, DateTime? endedFrom = null,
+            DateTime? endedTo = null,
+            string[]? channel = null, string[]? source = null, bool verbose = false, int limit = 200,
+            string[]? status = null,
             int delayMilliseconds = 200)
         {
             var currentOffset = 0;
             bool hasMore;
             do
             {
-                var (value, response) = await GetSessions(startedFrom, startedTo, endedFrom, endedTo, channel, source, verbose, limit, currentOffset, status);
+                var (value, response) = await GetSessions(startedFrom, startedTo, endedFrom, endedTo, channel, source,
+                    verbose, limit, currentOffset, status);
                 hasMore = value?.Count == limit;
                 if (value?.Any() == true)
                 {
@@ -73,13 +81,16 @@ namespace ObseumEU.Mluvii.Client
         }
 
         public async Task<(List<SessionModel>? value, HttpResponseMessage response)> GetSessions(
-            DateTime? startedFrom = null, DateTime? startedTo = null, DateTime? endedFrom = null, DateTime? endedTo = null,
-            string[]? channel = null, string[]? source = null, bool verbose = false, int limit = 10000, int? offset = null,
+            DateTime? startedFrom = null, DateTime? startedTo = null, DateTime? endedFrom = null,
+            DateTime? endedTo = null,
+            string[]? channel = null, string[]? source = null, bool verbose = false, int limit = 10000,
+            int? offset = null,
             string[]? status = null)
         {
             await SetAuthorizationHeaderAsync();
 
-            var urlWithArguments = $"/api/{Version}/Sessions{AddArgumentsToUrl(startedFrom, startedTo, endedFrom, endedTo, channel, source, limit, offset, status)}";
+            var urlWithArguments =
+                $"/api/{Version}/Sessions{AddArgumentsToUrl(startedFrom, startedTo, endedFrom, endedTo, channel, source, limit, offset, status)}";
             var response = await _httpClient.GetAsync(urlWithArguments);
             if (!response.IsSuccessStatusCode)
             {
@@ -92,7 +103,8 @@ namespace ObseumEU.Mluvii.Client
             return (sessions, response);
         }
 
-        private string AddArgumentsToUrl(DateTime? startedFrom, DateTime? startedTo, DateTime? endedFrom, DateTime? endedTo,
+        private string AddArgumentsToUrl(DateTime? startedFrom, DateTime? startedTo, DateTime? endedFrom,
+            DateTime? endedTo,
             string[]? channel, string[]? source, int limit, int? offset, string[]? status)
         {
             var arguments = new List<string>();
@@ -121,8 +133,22 @@ namespace ObseumEU.Mluvii.Client
             return arguments.Any() ? $"?{string.Join("&", arguments)}" : string.Empty;
         }
 
-        public Task<HttpResponseMessage> AddCustomChannelWebhook(string callBackUrl) => throw new NotImplementedException();
-        public Task<HttpResponseMessage> DeleteCustomChannelWebhook(string callBackUrl) => throw new NotImplementedException();
-        public Task<HttpResponseMessage> UpdateCustomChannelWebhook(string callBackUrl) => throw new NotImplementedException();
+        public async Task<(SessionModel? value, HttpResponseMessage response)> GetSession(long sessionId)
+        {
+            await SetAuthorizationHeaderAsync();
+
+            var url = $"/api/{Version}/Sessions/{sessionId}";
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError($"Failed to fetch session {sessionId} with status code {response.StatusCode}");
+                return (null, response);
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var session = JsonSerializer.Deserialize<SessionModel>(content, _jsonSerializerOptions);
+            return (session, response);
+        }
     }
 }
