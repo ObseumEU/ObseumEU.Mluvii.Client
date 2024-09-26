@@ -1,4 +1,4 @@
-﻿using mluvii.ApiModels.Sessions;
+using mluvii.ApiModels.Sessions;
 
 namespace ObseumEU.Mluvii.Client
 {
